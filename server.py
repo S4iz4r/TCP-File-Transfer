@@ -71,6 +71,7 @@ def send_file(fname, ip, port, server_data_path=SERVER_DATA_PATH):
         client.send(b'<END>')
         file.close()
         client.close()
+        print("File sended successfully")
     except Exception as e:
         print(e)
 
