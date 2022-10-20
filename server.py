@@ -237,6 +237,8 @@ def handle_client(conn, addr):
             data = "OK@"
             data += help_text
             conn.send(data.encode())
+        elif cmd == 'ok':
+            conn.send('OK@'.encode())
         else:
             data = "OK@You have to chose one available command:"
             data += help_text
