@@ -83,7 +83,6 @@ def recive_file(ip, port, client_data_path=CLIENT_DATA_PATH):
         progress = tqdm.tqdm(unit='B', unit_scale=True,
                              unit_divisor=1000, total=int(file_size))
         while not done:
-            # 1048576, 1024, 8196, 65536, 1024000...
             data = client.recv(1024000)
             if file_bytes[-5:] == b'<END>':
                 done = True
@@ -234,9 +233,8 @@ def main(IP):
                         cmd = 'ok'
                         client.send((cmd + '@').encode())
             except:
-                # name = ''
-                # client.send(f"{cmd}@{name}".encode())
-                continue
+                name = ''
+                client.send(f"{cmd}@{name}".encode())
         else:
             client.send(cmd.encode())
 
