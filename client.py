@@ -203,30 +203,40 @@ def main(IP):
                         port += 1
                     client.send(cmd.encode())
                 else:
-                    print(f"\n{'*' * 72}")
-                    t = CustomThread(target=recive_file, args=(SELF_IP, PORT))
-                    t.start()
-                    client.send(f"{cmd}@{name}@{PORT}".encode())
-                    fname, file_hash = t.join()
-                    files = os.listdir(CLIENT_DATA_PATH)
-                    if fname in files:
-                        file_sha256 = sha256(open(
-                            CLIENT_DATA_PATH+slash+fname, 'rb').read()).hexdigest()
-                        if str(file_sha256) == file_hash:
-                            print(
-                                f"sha256: {file_sha256}")
-                            print("File downloaded successfully.")
-                            print(f"{'*' * 72}\n")
+                    client.send('ls'.encode())
+                    data = client.recv(1024).decode()
+                    cmd, msg = data.split("@")
+                    print(msg)
+                    if name in msg[1:-1].split('\n'):
+                        print(f"\n{'*' * 72}")
+                        t = CustomThread(target=recive_file,
+                                         args=(SELF_IP, PORT))
+                        t.start()
+                        client.send(f"{cmd}@{name}@{PORT}".encode())
+                        fname, file_hash = t.join()
+                        files = os.listdir(CLIENT_DATA_PATH)
+                        if fname in files:
+                            file_sha256 = sha256(open(
+                                CLIENT_DATA_PATH+slash+fname, 'rb').read()).hexdigest()
+                            if str(file_sha256) == file_hash:
+                                print(
+                                    f"sha256: {file_sha256}")
+                                print("File downloaded successfully.")
+                                print(f"{'*' * 72}\n")
+                            else:
+                                print("Downloaded file seems to be corrupted.")
+                                print(f"{'*' * 72}\n")
                         else:
-                            print("Downloaded file seems to be corrupted.")
+                            print("Could not download file!")
                             print(f"{'*' * 72}\n")
                     else:
-                        print("Could not download file!")
-                        print(f"{'*' * 72}\n")
-            except Exception as e:
-                print(e)
-                name = ''
-                client.send(f"{cmd}@{name}".encode())
+                        print("File not found")
+                        cmd = 'ok'
+                        client.send((cmd + '@').encode())
+            except:
+                # name = ''
+                # client.send(f"{cmd}@{name}".encode())
+                continue
         else:
             client.send(cmd.encode())
 
