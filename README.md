@@ -25,7 +25,7 @@ The downloaded files are stored in the "downloaded" directory which is located o
 - Install required modules:
       pip install -r requirements.txt
 - Run "server.py" on your host server ( put the files you want to share on "server_data" directroy):
-- Run "client.py" on the devices yo want to recive the files on.
+- Run "client.py" on the devices you want to receive the files on and connect to the server by typing its IP address.
   
   
 To do:
