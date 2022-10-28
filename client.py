@@ -66,6 +66,7 @@ def recive_file(ip, port, client_data_path=CLIENT_DATA_PATH):
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server.bind((ip, port + 1))
         server.listen()
+        server.settimeout(2)
         client, addr = server.accept()
         file_name = client.recv(1024).decode()
         client.send('ok'.encode())
@@ -83,6 +84,7 @@ def recive_file(ip, port, client_data_path=CLIENT_DATA_PATH):
         progress = tqdm.tqdm(unit='B', unit_scale=True,
                              unit_divisor=1000, total=int(file_size))
         while not done:
+            # 1048576, 1024, 8196, 65536, 1024000...
             data = client.recv(1024000)
             if file_bytes[-5:] == b'<END>':
                 done = True
@@ -99,18 +101,25 @@ def recive_file(ip, port, client_data_path=CLIENT_DATA_PATH):
 
 
 def main(IP):
-    try:
-        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        client.connect((IP, PORT))
-        client.send(platform.encode())
-    except:
+    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    if IP != '':
+        try:
+            client.connect((IP, PORT))
+            client.send(platform.encode())
+        except ConnectionRefusedError:
+            print(f"Failed to connect to {IP} through port {PORT}...")
+            exit()
+    else:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(("8.8.8.8", 80))
         IP = s.getsockname()[0]
         s.close()
-        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        client.connect((IP, PORT))
-        client.send(platform.encode())
+        try:
+            client.connect((IP, PORT))
+            client.send(platform.encode())
+        except ConnectionRefusedError:
+            print(f"Failed to connect to {IP} through port {PORT}...")
+            exit()
     print(f"Connecting to [{IP}:{PORT}]")
     while True:
         data = client.recv(SIZE).decode()
@@ -123,7 +132,8 @@ def main(IP):
             print(f"[SERVER]: {msg}")
             break
         elif cmd == "OK":
-            print(f"{msg}")
+            if not msg.startswith("OK@"):
+                print(f"{msg}")
         data = ''
         while data == '':
             try:
@@ -167,22 +177,20 @@ def main(IP):
                     cmd = 'ok'
                     client.send((cmd + '@').encode())
         elif cmd == 'download' or cmd == '-d' or cmd == 'get':
-            try:
-                name = payload
-                if name == '*':
-                    client.send('ls'.encode())
-                    data = client.recv(1024).decode()
-                    cmd, msg = data.split("@")
-                    print("Downloading all files.")
-                    port = PORT
-                    for i in msg[1:-1].split('\n'):
-                        print(f"\n{'*' * 72}")
-                        t = CustomThread(target=recive_file,
-                                         args=(SELF_IP, port))
-                        t.start()
-                        client.send(f"get@{i}@{port}".encode())
-                        data = client.recv(1024).decode()
-                        cmd, msg = data.split("@")
+            name = payload
+            if name == '*':
+                client.send('ls'.encode())
+                data = client.recv(1024).decode()
+                rcmd, msg = data.split("@")
+                print("Downloading all files.")
+                port = PORT
+                for i in msg[1:-1].split('\n'):
+                    print(f"\n{'*' * 72}")
+                    t = CustomThread(target=recive_file,
+                                     args=(SELF_IP, port))
+                    t.start()
+                    client.send(f"{cmd}@{i}@{port}".encode())
+                    try:
                         fname, file_hash = t.join()
                         files = os.listdir(CLIENT_DATA_PATH)
                         if fname in files:
@@ -199,42 +207,33 @@ def main(IP):
                         else:
                             print("Could not download file!")
                             print(f"{'*' * 72}\n")
-                        port += 1
-                    client.send(cmd.encode())
-                else:
-                    client.send('ls'.encode())
-                    data = client.recv(1024).decode()
-                    cmd, msg = data.split("@")
-                    print(msg)
-                    if name in msg[1:-1].split('\n'):
-                        print(f"\n{'*' * 72}")
-                        t = CustomThread(target=recive_file,
-                                         args=(SELF_IP, PORT))
-                        t.start()
-                        client.send(f"{cmd}@{name}@{PORT}".encode())
-                        fname, file_hash = t.join()
-                        files = os.listdir(CLIENT_DATA_PATH)
-                        if fname in files:
-                            file_sha256 = sha256(open(
-                                CLIENT_DATA_PATH+slash+fname, 'rb').read()).hexdigest()
-                            if str(file_sha256) == file_hash:
-                                print(
-                                    f"sha256: {file_sha256}")
-                                print("File downloaded successfully.")
-                                print(f"{'*' * 72}\n")
-                            else:
-                                print("Downloaded file seems to be corrupted.")
-                                print(f"{'*' * 72}\n")
+                    except:
+                        pass
+                    port += 1
+            else:
+                print(f"\n{'*' * 72}")
+                t = CustomThread(target=recive_file,
+                                 args=(SELF_IP, PORT))
+                t.start()
+                client.send(f"{cmd}@{name}@{PORT}".encode())
+                try:
+                    fname, file_hash = t.join()
+                    files = os.listdir(CLIENT_DATA_PATH)
+                    if fname in files:
+                        file_sha256 = sha256(open(
+                            CLIENT_DATA_PATH+slash+fname, 'rb').read()).hexdigest()
+                        if str(file_sha256) == file_hash:
+                            print(f"sha256: {file_sha256}")
+                            print("File downloaded successfully.")
+                            print(f"{'*' * 72}\n")
                         else:
-                            print("Could not download file!")
+                            print("Downloaded file seems to be corrupted.")
                             print(f"{'*' * 72}\n")
                     else:
-                        print("File not found")
-                        cmd = 'ok'
-                        client.send((cmd + '@').encode())
-            except:
-                name = ''
-                client.send(f"{cmd}@{name}".encode())
+                        print("Could not download file!")
+                        print(f"{'*' * 72}\n")
+                except:
+                    continue
         else:
             client.send(cmd.encode())
 
