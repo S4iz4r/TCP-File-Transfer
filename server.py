@@ -164,26 +164,30 @@ def handle_client(conn, addr):
             try:
                 fname = data[1].split(slash)[-1]
                 port = data[2]
-                print(
-                    f"{addr} has requested a file dowload: {fname} through port: {int(port) + 1}")
             except:
-                fname = ''
-                send_data += "You must specify the file to download."
-            if len(files) == 0:
-                send_data += "The server directory is empty"
+                continue
+            if not os.path.isdir(SERVER_DATA_PATH + slash + fname):
+                print(
+                    f"{addr} has requested a to file dowload: {fname} through port: {int(port) + 1}")
+                if len(files) == 0:
+                    send_data += "The server directory is empty"
+                else:
+                    try:
+                        if fname in files:
+                            try:
+                                threading.Thread(target=send_file,
+                                                 args=(fname, addr[0], port)).start()
+                            except Exception as e:
+                                print(f"ERROR: {e}")
+                                send_data += "File could not be downloaded!"
+                        else:
+                            send_data += "File not found."
+                    except:
+                        continue
+            elif os.path.isdir(SERVER_DATA_PATH + slash + fname) and fname != '':
+                send_data += f"{fname} is a directory."
             else:
-                try:
-                    if fname in files or fname != '':
-                        try:
-                            threading.Thread(target=send_file,
-                                             args=(fname, addr[0], port)).start()
-                        except Exception as e:
-                            print(f"ERROR: {e}")
-                            send_data += "File could not be downloaded!"
-                    elif fname != '':
-                        send_data += "File not found."
-                except Exception as e:
-                    print(e)
+                send_data += "You must specify a file to download."
             conn.send(send_data.encode())
         elif cmd == "delete" or cmd == "rm" or cmd == "del":
             files = os.listdir(SERVER_DATA_PATH)
@@ -199,7 +203,7 @@ def handle_client(conn, addr):
             else:
                 if filename in files or filename != '':
                     os.system(
-                        f'{delete_file} "{SERVER_DATA_PATH}{slash}{filename}"')
+                        f'{delete_file}  /s /f /q "{SERVER_DATA_PATH}{slash}{filename}"')
                     files = os.listdir(SERVER_DATA_PATH)
                     if filename not in files:
                         send_data += "File deleted successfully."
