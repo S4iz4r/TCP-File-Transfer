@@ -122,7 +122,10 @@ def main(IP):
             exit()
     print(f"Connecting to [{IP}:{PORT}]")
     while True:
-        data = client.recv(SIZE).decode()
+        try:
+            data = client.recv(SIZE).decode()
+        except:
+            continue
         try:
             cmd, msg = data.split("@", 1)
         except Exception as e:
@@ -163,19 +166,23 @@ def main(IP):
             except:
                 client.send(cmd.encode())
         elif cmd == "upload" or cmd == "-U" or cmd == "-u":
+            port = PORT
             for file in payload.split(", "):
                 if os.path.isfile(file):
                     try:
-                        client.send(f'{cmd}@{file}'.encode())
+                        client.send(f'{cmd}@{file}@{port}'.encode())
                         threading.Thread(target=upload_file, args=(
-                            file, IP, PORT,)).start()
+                            file, IP, port,)).start()
+                        # print(client.recv(1024).decode().split('@')[1])
                     except:
-                        cmd = 'ok'
-                        client.send((cmd + '@').encode())
+                        client.send('ok@'.encode())
+                elif os.path.isdir(file):
+                    print(f"{file} is a directory, file required!")
+                    client.send('ok@'.encode())
                 else:
                     print('File not found')
-                    cmd = 'ok'
-                    client.send((cmd + '@').encode())
+                    client.send('ok@'.encode())
+                port += 1
         elif cmd == 'download' or cmd == '-d' or cmd == 'get':
             name = payload
             if name == '*':
