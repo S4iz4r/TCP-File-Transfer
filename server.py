@@ -81,6 +81,7 @@ def recive_file(ip, port, server_data_path=SERVER_DATA_PATH):
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server.bind((ip, int(port) + 1))
         server.listen()
+        server.settimeout(2)
         client, addr = server.accept()
         file_name = client.recv(1024).decode()
         client.send('ok'.encode())
@@ -139,24 +140,29 @@ def handle_client(conn, addr):
             send_data = 'OK@'
             conn.send(f'{send_data}{pwd}'.encode())
         elif cmd == "upload" or cmd == "-u":
+            port = data[2]
             print(f"\n{'*' * 72}")
-            print(f"{addr} has requested a file upload through port: {int(PORT) + 1}")
-            t = CustomThread(target=recive_file, args=(IP, PORT))
+            print(f"{addr} has requested a file upload through port: {int(port) + 1}")
+            t = CustomThread(target=recive_file, args=(IP, port))
             t.start()
-            fname, file_hash = t.join()
-            files = os.listdir(SERVER_DATA_PATH)
-            if fname in files:
-                file_sha256 = sha256(open(
-                    SERVER_DATA_PATH+slash+fname, 'rb').read()).hexdigest()
-                if str(file_sha256) == file_hash:
-                    print(f"sha256: {file_sha256}")
-                    conn.send("OK@File uploaded successfully.".encode())
-                else:
-                    conn.send("OK@Uploaded file seems to be corrupted".encode())
-                    os.system(
-                        f"{delete_file} {SERVER_DATA_PATH}{slash}{fname}")
-            else:
+            try:
+                fname, file_hash = t.join()
+                files = os.listdir(SERVER_DATA_PATH)
+                if fname in files:
+                    file_sha256 = sha256(open(
+                        SERVER_DATA_PATH+slash+fname, 'rb').read()).hexdigest()
+                    if str(file_sha256) == file_hash:
+                        print(f"sha256: {file_sha256}")
+                        conn.send("OK@File uploaded successfully.".encode())
+                    else:
+                        conn.send(
+                            "OK@Uploaded file seems to be corrupted".encode())
+                        os.system(
+                            f"{delete_file} {SERVER_DATA_PATH}{slash}{fname}")
+
+            except:
                 conn.send("OK@Could not upload file!".encode())
+            # conn.send('OK@'.encode())
             print(f"{'*' * 72}\n")
         elif cmd == 'download' or cmd == '-d' or cmd == 'get':
             files = os.listdir(SERVER_DATA_PATH)
