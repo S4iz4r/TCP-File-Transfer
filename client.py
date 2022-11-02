@@ -1,9 +1,11 @@
 import socket
 import tqdm
 import os
+import time
 import threading
 import platform
 import re
+import shutil
 from threading import Thread
 from hashlib import sha256
 
@@ -57,6 +59,7 @@ def upload_file(fname, ip, port):
         client.send(b'<END>')
         file.close()
         client.close()
+        return True
     except Exception as e:
         print(e)
 
@@ -66,7 +69,6 @@ def recive_file(ip, port, client_data_path=CLIENT_DATA_PATH):
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server.bind((ip, port + 1))
         server.listen()
-        server.settimeout(2)
         client, addr = server.accept()
         file_name = client.recv(1024).decode()
         client.send('ok'.encode())
@@ -91,7 +93,10 @@ def recive_file(ip, port, client_data_path=CLIENT_DATA_PATH):
             else:
                 file_bytes += data
             progress.update(len(data))
-        file.write(file_bytes.replace(b'<END>', b''))
+        last_index = file_bytes.rfind(b'>')
+        replaced_last = file_bytes[:last_index-4] + \
+            b'' + file_bytes[last_index+1:]
+        file.write(replaced_last)
         file.close()
         client.close()
         server.close()
@@ -122,15 +127,11 @@ def main(IP):
             exit()
     print(f"Connecting to [{IP}:{PORT}]")
     while True:
-        try:
-            data = client.recv(SIZE).decode()
-        except:
-            continue
+        data = client.recv(SIZE).decode()
         try:
             cmd, msg = data.split("@", 1)
         except Exception as e:
             print(e)
-
         if cmd == "DISCONNECTED":
             print(f"[SERVER]: {msg}")
             break
@@ -166,22 +167,39 @@ def main(IP):
             except:
                 client.send(cmd.encode())
         elif cmd == "upload" or cmd == "-U" or cmd == "-u":
+            multiple = False
             port = PORT
+            multi = len(payload.split(', '))
             for file in payload.split(", "):
+                if multi > 1:
+                    multiple = True
+                else:
+                    multiple = False
+                if os.path.isdir(file):
+                    print(f"{file} is a directory, converting to .zip file...")
+                    shutil.make_archive(file, 'zip', file)
+                    file = zip_file = file + ".zip"
                 if os.path.isfile(file):
                     try:
                         client.send(f'{cmd}@{file}@{port}'.encode())
-                        threading.Thread(target=upload_file, args=(
-                            file, IP, port,)).start()
-                        # print(client.recv(1024).decode().split('@')[1])
+                        t = CustomThread(target=upload_file,
+                                         args=(file, IP, port,))
+                        t.start()
+                        ok = t.join()
+                        if multiple:
+                            data = client.recv(1024).decode()
+                            print(data.split('@')[1])
+                        if zip_file and ok:
+                            print("Deleting converted .zip file...")
+                            os.system(
+                                f'{delete_file} /f /q "{zip_file}" 1> nul')
+                            zip_file = None
                     except:
                         client.send('ok@'.encode())
-                elif os.path.isdir(file):
-                    print(f"{file} is a directory, file required!")
-                    client.send('ok@'.encode())
                 else:
                     print('File not found')
                     client.send('ok@'.encode())
+                multi -= 1
                 port += 1
         elif cmd == 'download' or cmd == '-d' or cmd == 'get':
             name = payload
@@ -201,9 +219,11 @@ def main(IP):
                         fname, file_hash = t.join()
                         files = os.listdir(CLIENT_DATA_PATH)
                         if fname in files:
+                            print("Checking integrity...")
                             file_sha256 = sha256(open(
                                 CLIENT_DATA_PATH+slash+fname, 'rb').read()).hexdigest()
                             if str(file_sha256) == file_hash:
+                                print("OK")
                                 print(
                                     f"sha256: {file_sha256}")
                                 print("File downloaded successfully.")
