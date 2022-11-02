@@ -3,6 +3,7 @@ import socket
 import threading
 import tqdm
 import platform
+import shutil
 from threading import Thread
 from hashlib import sha256
 
@@ -44,6 +45,7 @@ pwd = os.path.dirname(os.path.relpath(__name__)) + slash + SERVER_DATA_PATH
 help_text = """\n\npwd, cd: Show the current directory
 list, ls, dir, -l: List all the files from the server.
 upload, -u <path>: Upload a file to the server.
+To upload a directory, client.py creates a .zip file automatically (be careful with the size).
 download, get, -d <file to download>: Download file from the server.
 You can use '*' to download all the files: get *
 cat, type: to read he content of the file (if its readable)
@@ -71,7 +73,7 @@ def send_file(fname, ip, port, server_data_path=SERVER_DATA_PATH):
         client.send(b'<END>')
         file.close()
         client.close()
-        print("File sended successfully")
+        print("File transferred successfully")
     except Exception as e:
         print(e)
 
@@ -104,7 +106,10 @@ def recive_file(ip, port, server_data_path=SERVER_DATA_PATH):
             else:
                 file_bytes += data
             progress.update(len(data))
-        file.write(file_bytes.replace(b'<END>', b''))
+        last_index = file_bytes.rfind(b'>')
+        replaced_last = file_bytes[:last_index-4] + \
+            b'' + file_bytes[last_index+1:]
+        file.write(replaced_last)
         file.close()
         client.close()
         server.close()
@@ -126,9 +131,19 @@ def handle_client(conn, addr):
         except:
             break
         if cmd == "list" or cmd == "-l" or cmd == "ls" or cmd == 'dir':
-            files = os.listdir(SERVER_DATA_PATH)
+            all_files = os.listdir(SERVER_DATA_PATH)
+            files = []
+            for f in all_files:
+                if not os.path.isdir(os.path.join(SERVER_DATA_PATH, f)):
+                    files.append(f)
+                else:
+                    shutil.make_archive(
+                        SERVER_DATA_PATH+slash+f, 'zip', SERVER_DATA_PATH+slash+f)
+                    files.append(f'{f}.zip')
+                    os.system(
+                        f'rmdir /q "{SERVER_DATA_PATH}{slash}{f}" 1> nul')
             send_data = "OK@"
-            if len(files) == 0:
+            if len(all_files) == 0:
                 send_data += "The server directory is empty"
             else:
                 send_data += "\n" + "\n".join(f for f in files) + "\n"
@@ -149,20 +164,22 @@ def handle_client(conn, addr):
                 fname, file_hash = t.join()
                 files = os.listdir(SERVER_DATA_PATH)
                 if fname in files:
+                    print("Checking integrity...")
                     file_sha256 = sha256(open(
                         SERVER_DATA_PATH+slash+fname, 'rb').read()).hexdigest()
                     if str(file_sha256) == file_hash:
+                        print("OK")
                         print(f"sha256: {file_sha256}")
-                        conn.send("OK@File uploaded successfully.".encode())
+                        conn.send(
+                            f"OK@< {fname} >  uploaded successfully.".encode())
                     else:
                         conn.send(
                             "OK@Uploaded file seems to be corrupted".encode())
+                        print("Integrity check failed!")
                         os.system(
                             f"{delete_file} {SERVER_DATA_PATH}{slash}{fname}")
-
             except:
                 conn.send("OK@Could not upload file!".encode())
-            # conn.send('OK@'.encode())
             print(f"{'*' * 72}\n")
         elif cmd == 'download' or cmd == '-d' or cmd == 'get':
             files = os.listdir(SERVER_DATA_PATH)
@@ -179,7 +196,7 @@ def handle_client(conn, addr):
                     send_data += "The server directory is empty"
                 else:
                     try:
-                        if fname in files:
+                        if fname in files and not os.path.isdir(fname):
                             try:
                                 threading.Thread(target=send_file,
                                                  args=(fname, addr[0], port)).start()
@@ -190,8 +207,6 @@ def handle_client(conn, addr):
                             send_data += "File not found."
                     except:
                         continue
-            elif os.path.isdir(SERVER_DATA_PATH + slash + fname) and fname != '':
-                send_data += f"{fname} is a directory."
             else:
                 send_data += "You must specify a file to download."
             conn.send(send_data.encode())
@@ -209,7 +224,7 @@ def handle_client(conn, addr):
             else:
                 if filename in files or filename != '':
                     os.system(
-                        f'{delete_file}  /s /f /q "{SERVER_DATA_PATH}{slash}{filename}"')
+                        f'{delete_file} /f /q "{SERVER_DATA_PATH}{slash}{filename}" 1> nul')
                     files = os.listdir(SERVER_DATA_PATH)
                     if filename not in files:
                         send_data += "File deleted successfully."
