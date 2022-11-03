@@ -1,8 +1,6 @@
 import socket
 import tqdm
 import os
-import time
-import threading
 import platform
 import re
 import shutil
@@ -22,9 +20,9 @@ CLIENT_DATA_PATH = 'downloaded'
 platform = platform.system()
 re_ip = re.compile('\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$')
 
-delete_file = 'rm'if platform != 'Windows' else 'del /f /q'
-slash = '/'if platform != 'Windows' else '\\'
-disable_stdout = '1>/dev/null'if platform != 'Windows' else '1> nul'
+delete_file = 'rm' if platform != 'Windows' else 'del /f /q'
+slash = '/' if platform != 'Windows' else '\\'
+disable_stdout = '1>/dev/null' if platform != 'Windows' else '1> nul'
 
 
 class CustomThread(Thread):

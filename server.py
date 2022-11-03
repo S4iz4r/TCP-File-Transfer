@@ -25,9 +25,9 @@ class CustomThread(Thread):
 
 platform = platform.system()
 
-delete_file = 'rm'if platform != 'Windows' else 'del /f /q'
-slash = '/'if platform != 'Windows' else '\\'
-disable_stdout = '1>/dev/null'if platform != 'Windows' else '1> nul'
+delete_file = 'rm' if platform != 'Windows' else 'del /f /q'
+slash = '/' if platform != 'Windows' else '\\'
+disable_stdout = '1>/dev/null' if platform != 'Windows' else '1> nul'
 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 s.connect(("8.8.8.8", 80))
 IP = s.getsockname()[0]
