@@ -25,8 +25,9 @@ class CustomThread(Thread):
 
 platform = platform.system()
 
-delete_file = 'rm'if platform != 'Windows' else 'del'
+delete_file = 'rm'if platform != 'Windows' else 'del /f /q'
 slash = '/'if platform != 'Windows' else '\\'
+disable_stout = '1>/dev/null'if platform != 'Windows' else '1> nul'
 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 s.connect(("8.8.8.8", 80))
 IP = s.getsockname()[0]
@@ -177,7 +178,7 @@ def handle_client(conn, addr):
                             "OK@Uploaded file seems to be corrupted".encode())
                         print("Integrity check failed!")
                         os.system(
-                            f"{delete_file} {SERVER_DATA_PATH}{slash}{fname}")
+                            f'{delete_file} "{SERVER_DATA_PATH}{slash}{fname}" {disable_stout}')
             except:
                 conn.send("OK@Could not upload file!".encode())
             print(f"{'*' * 72}\n")
@@ -224,7 +225,7 @@ def handle_client(conn, addr):
             else:
                 if filename in files or filename != '':
                     os.system(
-                        f'{delete_file} /f /q "{SERVER_DATA_PATH}{slash}{filename}" 1> nul')
+                        f'{delete_file} "{SERVER_DATA_PATH}{slash}{filename}" {disable_stout}')
                     files = os.listdir(SERVER_DATA_PATH)
                     if filename not in files:
                         send_data += "File deleted successfully."
