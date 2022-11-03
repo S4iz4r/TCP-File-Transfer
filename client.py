@@ -24,7 +24,7 @@ re_ip = re.compile('\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$')
 
 delete_file = 'rm'if platform != 'Windows' else 'del /f /q'
 slash = '/'if platform != 'Windows' else '\\'
-disable_stout = '1>/dev/null'if platform != 'Windows' else '1> nul'
+disable_stdout = '1>/dev/null'if platform != 'Windows' else '1> nul'
 
 
 class CustomThread(Thread):
@@ -193,7 +193,7 @@ def main(IP):
                         if zip_file and ok:
                             print("Deleting converted .zip file...")
                             os.system(
-                                f'{delete_file} "{zip_file}" {disable_stout}')
+                                f'{delete_file} "{zip_file}" {disable_stdout}')
                             zip_file = None
                     except:
                         client.send('ok@'.encode())
