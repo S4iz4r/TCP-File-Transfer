@@ -26,6 +26,7 @@ class CustomThread(Thread):
 platform = platform.system()
 
 delete_file = 'rm' if platform != 'Windows' else 'del /f /q'
+rmdir = 'rm -rf' if platform != 'Windows' else 'rmdir /q'
 slash = '/' if platform != 'Windows' else '\\'
 disable_stdout = '1>/dev/null' if platform != 'Windows' else '1> nul'
 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -142,7 +143,7 @@ def handle_client(conn, addr):
                         SERVER_DATA_PATH+slash+f, 'zip', SERVER_DATA_PATH+slash+f)
                     files.append(f'{f}.zip')
                     os.system(
-                        f'rmdir /q "{SERVER_DATA_PATH}{slash}{f}" 1> nul')
+                        f'{rmdir} "{SERVER_DATA_PATH}{slash}{f}" {disable_stdout}')
             send_data = "OK@"
             if len(all_files) == 0:
                 send_data += "The server directory is empty"
