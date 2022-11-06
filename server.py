@@ -26,7 +26,7 @@ class CustomThread(Thread):
 platform = platform.system()
 
 delete_file = 'rm' if platform != 'Windows' else 'del /f /q'
-rmdir = 'rm -rf' if platform != 'Windows' else 'rmdir /q'
+rmdir = 'rm -rf' if platform != 'Windows' else 'rmdir /s /q'
 slash = '/' if platform != 'Windows' else '\\'
 disable_stdout = '1>/dev/null' if platform != 'Windows' else '1> nul'
 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -102,7 +102,10 @@ def recive_file(ip, port, server_data_path=SERVER_DATA_PATH):
                              unit_divisor=1000, total=int(file_size))
         while not done:
             # 1048576, 1024, 8196, 65536, 1024000...
-            data = client.recv(int(1024000))
+            if int(file_size) > 1024:
+                data = client.recv(round(int(file_size) / 10))
+            else:
+                data = client.recv(1024)
             if file_bytes[-5:] == b'<END>':
                 done = True
             else:
@@ -139,16 +142,22 @@ def handle_client(conn, addr):
                 if not os.path.isdir(os.path.join(SERVER_DATA_PATH, f)):
                     files.append(f)
                 else:
+                    print(f"{f} is a directory")
+                    print(f"Generating a .zip file of {f}...")
                     shutil.make_archive(
                         SERVER_DATA_PATH+slash+f, 'zip', SERVER_DATA_PATH+slash+f)
                     files.append(f'{f}.zip')
+                    print("OK")
+                    print("Deleting original directory...")
                     os.system(
                         f'{rmdir} "{SERVER_DATA_PATH}{slash}{f}" {disable_stdout}')
+                    print("OK")
             send_data = "OK@"
             if len(all_files) == 0:
                 send_data += "The server directory is empty"
             else:
                 send_data += "\n" + "\n".join(f for f in files) + "\n"
+            files = []
             conn.send(send_data.encode())
         elif cmd == 'OK':
             send_data = "OK@"
@@ -159,7 +168,7 @@ def handle_client(conn, addr):
         elif cmd == "upload" or cmd == "-u":
             port = data[2]
             print(f"\n{'*' * 72}")
-            print(f"{addr} has requested a file upload through port: {int(port) + 1}")
+            print(f"{addr} has requested file upload through port: {int(port) + 1}")
             t = CustomThread(target=recive_file, args=(IP, port))
             t.start()
             try:
@@ -177,7 +186,7 @@ def handle_client(conn, addr):
                     else:
                         conn.send(
                             "OK@Uploaded file seems to be corrupted".encode())
-                        print("Integrity check failed!")
+                        print("Integrity check failed!\nCleaning corrupted file...")
                         os.system(
                             f'{delete_file} "{SERVER_DATA_PATH}{slash}{fname}" {disable_stdout}')
             except:

@@ -3,6 +3,7 @@ import tqdm
 import os
 import platform
 import re
+import time
 import shutil
 from threading import Thread
 from hashlib import sha256
@@ -86,7 +87,10 @@ def recive_file(ip, port, client_data_path=CLIENT_DATA_PATH):
                              unit_divisor=1000, total=int(file_size))
         while not done:
             # 1048576, 1024, 8196, 65536, 1024000...
-            data = client.recv(1024000)
+            if int(file_size) > 1024:
+                data = client.recv(round(int(file_size) / 10))
+            else:
+                data = client.recv(1024)
             if file_bytes[-5:] == b'<END>':
                 done = True
             else:
@@ -112,6 +116,7 @@ def main(IP):
             client.send(platform.encode())
         except ConnectionRefusedError:
             print(f"Failed to connect to {IP} through port {PORT}...")
+            time.sleep(2)
             exit()
     else:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -166,13 +171,11 @@ def main(IP):
             except:
                 client.send(cmd.encode())
         elif cmd == "upload" or cmd == "-U" or cmd == "-u":
-            multiple = False
+            multiple = True
             port = PORT
             multi = len(payload.split(', '))
             for file in payload.split(", "):
-                if multi > 1:
-                    multiple = True
-                else:
+                if multi == 1:
                     multiple = False
                 if os.path.isdir(file):
                     print(f"{file} is a directory, converting to .zip file...")
@@ -193,6 +196,7 @@ def main(IP):
                             os.system(
                                 f'{delete_file} "{zip_file}" {disable_stdout}')
                             zip_file = None
+                            print("OK")
                     except:
                         client.send('ok@'.encode())
                 else:
@@ -228,7 +232,10 @@ def main(IP):
                                 print("File downloaded successfully.")
                                 print(f"{'*' * 72}\n")
                             else:
-                                print("Downloaded file seems to be corrupted.")
+                                print(
+                                    "Integrity check failed!\nCleaning corrupted file...")
+                                os.system(
+                                    f'{delete_file} "{CLIENT_DATA_PATH}{slash}{fname}" {disable_stdout}')
                                 print(f"{'*' * 72}\n")
                         else:
                             print("Could not download file!")
@@ -264,6 +271,7 @@ def main(IP):
             client.send(cmd.encode())
 
     print("Disconnected from the server.")
+    time.sleep(2)
     client.close()
 
 
