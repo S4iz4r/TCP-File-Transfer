@@ -136,10 +136,7 @@ def main(IP):
             cmd, msg = data.split("@", 1)
         except Exception as e:
             print(e)
-        if cmd == "DISCONNECTED":
-            print(f"[SERVER]: {msg}")
-            break
-        elif cmd == "OK":
+        if cmd == "OK":
             if not msg.startswith("OK@"):
                 print(f"{msg}")
         data = ''
@@ -244,29 +241,45 @@ def main(IP):
                         pass
                     port += 1
             else:
-                print(f"\n{'*' * 72}")
-                t = CustomThread(target=recive_file,
-                                 args=(SELF_IP, PORT))
-                t.start()
-                client.send(f"{cmd}@{name}@{PORT}".encode())
-                try:
-                    fname, file_hash = t.join()
-                    files = os.listdir(CLIENT_DATA_PATH)
-                    if fname in files:
-                        file_sha256 = sha256(open(
-                            CLIENT_DATA_PATH+slash+fname, 'rb').read()).hexdigest()
-                        if str(file_sha256) == file_hash:
-                            print(f"sha256: {file_sha256}")
-                            print("File downloaded successfully.")
-                            print(f"{'*' * 72}\n")
+                multiple = True
+                port = PORT
+                multi = len(payload.split(', '))
+                for f in name.split(', '):
+                    if multi == 1:
+                        multiple = False
+                    print(f"\n{'*' * 72}")
+                    t = CustomThread(target=recive_file,
+                                     args=(SELF_IP, port))
+                    t.start()
+                    client.send(f"{cmd}@{f}@{port}".encode())
+                    try:
+                        fname, file_hash = t.join()
+                        if multiple:
+                            data = client.recv(1024).decode()
+                            print(data.split('@')[1])
+                        files = os.listdir(CLIENT_DATA_PATH)
+                        if fname in files:
+                            print("Checking integrity...")
+                            file_sha256 = sha256(open(
+                                CLIENT_DATA_PATH+slash+fname, 'rb').read()).hexdigest()
+                            if str(file_sha256) == file_hash:
+                                print("OK")
+                                print(f"sha256: {file_sha256}")
+                                print("File downloaded successfully.")
+                                print(f"{'*' * 72}\n")
+                            else:
+                                print(
+                                    "Integrity check failed!\nCleaning corrupted file...")
+                                os.system(
+                                    f'{delete_file} "{CLIENT_DATA_PATH}{slash}{fname}" {disable_stdout}')
+                                print(f"{'*' * 72}\n")
                         else:
-                            print("Downloaded file seems to be corrupted.")
+                            print("Could not download file!")
                             print(f"{'*' * 72}\n")
-                    else:
-                        print("Could not download file!")
-                        print(f"{'*' * 72}\n")
-                except:
-                    continue
+                    except:
+                        continue
+                    multi -= 1
+                    port += 1
         else:
             client.send(cmd.encode())
 
