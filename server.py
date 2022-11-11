@@ -4,6 +4,7 @@ import threading
 import tqdm
 import platform
 import shutil
+from getpass import getpass
 from threading import Thread
 from hashlib import sha256
 
@@ -36,6 +37,7 @@ s.close()
 PORT = 4456
 ADDR = (IP, PORT)
 SERVER_DATA_PATH = "server_data"
+ADMIN_PASS = ""
 
 if os.path.isdir(SERVER_DATA_PATH) == False:
     os.mkdir(SERVER_DATA_PATH)
@@ -99,7 +101,6 @@ def recive_file(ip, port, server_data_path=SERVER_DATA_PATH):
         progress = tqdm.tqdm(unit='B', unit_scale=True,
                              unit_divisor=1000, total=int(file_size))
         while not done:
-            # 1048576, 1024, 8196, 65536, 1024000...
             if int(file_size) > 1024:
                 data = client.recv(round(int(file_size) / 10))
             else:
@@ -165,6 +166,12 @@ def handle_client(conn, addr):
             conn.send(f'{send_data}{pwd}'.encode())
         elif cmd == "upload" or cmd == "-u":
             port = data[2]
+            password = data[3]
+            if password != ADMIN_PASS:
+                conn.send("OK@Wrong password!".encode())
+                continue
+            else:
+                conn.send("OK@".encode())
             print(f"\n{'*' * 72}")
             print(f"{addr} has requested file upload through port: {int(port) + 1}")
             t = CustomThread(target=recive_file, args=(IP, port))
@@ -228,6 +235,13 @@ def handle_client(conn, addr):
             except:
                 filename = ''
                 send_data += "You must specify the file to delete."
+            try:
+                password = data[2]
+                if password != ADMIN_PASS:
+                    raise Exception("Wrong password!")
+            except Exception as e:
+                filename = ''
+                send_data += str(e)
             if len(files) == 0:
                 send_data += "The server directory is empty"
             else:
@@ -283,7 +297,13 @@ def handle_client(conn, addr):
 
 
 def main():
+    global ADMIN_PASS
     print(f"\n[STARTING] Server is starting... [PLATFORM] {platform}\n")
+    while ADMIN_PASS == '' or len(ADMIN_PASS) < 3:
+        ADMIN_PASS = getpass("Set admin password > ")
+        if len(ADMIN_PASS) < 3:
+            print("The password must have at least 3 characters")
+    ADMIN_PASS = sha256(ADMIN_PASS.encode()).hexdigest()
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.bind(ADDR)
     server.listen()

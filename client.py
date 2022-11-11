@@ -5,6 +5,7 @@ import platform
 import re
 import time
 import shutil
+from getpass import getpass
 from threading import Thread
 from hashlib import sha256
 
@@ -84,7 +85,6 @@ def recive_file(ip, port, client_data_path=CLIENT_DATA_PATH):
         progress = tqdm.tqdm(unit='B', unit_scale=True,
                              unit_divisor=1000, total=int(file_size))
         while not done:
-            # 1048576, 1024, 8196, 65536, 1024000...
             if int(file_size) > 1024:
                 data = client.recv(round(int(file_size) / 10))
             else:
@@ -135,7 +135,7 @@ def main(IP):
         except Exception as e:
             print(e)
         if cmd == "OK":
-            if not msg.startswith("OK@"):
+            if not msg.startswith("OK@") or not msg.startswith(" "):
                 print(f"{msg}")
         data = ''
         while data == '':
@@ -156,8 +156,12 @@ def main(IP):
         elif cmd == "list" or cmd == "-l" or cmd == "ls" or cmd == "dir":
             client.send(cmd.encode())
         elif cmd == "delete" or cmd == "rm" or cmd == "del":
+            password = ''
+            while password == '' or len(password) < 3:
+                password = getpass("Insert password > ")
+            password = sha256(password.encode()).hexdigest()
             try:
-                client.send(f"{cmd}@{payload}".encode())
+                client.send(f"{cmd}@{payload}@{password}".encode())
             except:
                 client.send(cmd.encode())
         elif cmd == 'cat' or cmd == "type":
@@ -166,10 +170,15 @@ def main(IP):
             except:
                 client.send(cmd.encode())
         elif cmd == "upload" or cmd == "-U" or cmd == "-u":
+            password = ''
+            while password == '' or len(password) < 3:
+                password = getpass("Insert password > ")
+            password = sha256(password.encode()).hexdigest()
             multiple = True
             port = PORT
             multi = len(payload.split(', '))
             for file in payload.split(", "):
+                zip_file = None
                 if multi == 1:
                     multiple = False
                 if os.path.isdir(file):
@@ -178,20 +187,25 @@ def main(IP):
                     file = zip_file = file + ".zip"
                 if os.path.isfile(file):
                     try:
-                        client.send(f'{cmd}@{file}@{port}'.encode())
-                        t = CustomThread(target=upload_file,
-                                         args=(file, IP, port,))
-                        t.start()
-                        ok = t.join()
-                        if multiple:
-                            data = client.recv(1024).decode()
-                            print(data.split('@')[1])
-                        if zip_file and ok:
-                            print("Deleting converted .zip file...")
-                            os.system(
-                                f'{delete_file} "{zip_file}" {disable_stdout}')
-                            zip_file = None
-                            print("OK")
+                        client.send(f'{cmd}@{file}@{port}@{password}'.encode())
+                        response = client.recv(1024).decode()
+                        if not response.split("@")[1].startswith("Wrong"):
+                            t = CustomThread(target=upload_file,
+                                             args=(file, IP, port,))
+                            t.start()
+                            ok = t.join()
+                            if multiple:
+                                data = client.recv(1024).decode()
+                                print(data.split('@')[1])
+                            if zip_file and ok:
+                                print("Deleting converted .zip file...")
+                                os.system(
+                                    f'{delete_file} "{zip_file}" {disable_stdout}')
+                                zip_file = None
+                                print("OK")
+                        else:
+                            print(response.split("@")[1])
+                            client.send("ok@".encode())
                     except:
                         client.send('ok@'.encode())
                 else:
