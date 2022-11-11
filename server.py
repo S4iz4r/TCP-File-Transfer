@@ -35,8 +35,6 @@ IP = s.getsockname()[0]
 s.close()
 PORT = 4456
 ADDR = (IP, PORT)
-SIZE = 1024
-FORMAT = "utf-8"
 SERVER_DATA_PATH = "server_data"
 
 if os.path.isdir(SERVER_DATA_PATH) == False:
@@ -124,13 +122,13 @@ def recive_file(ip, port, server_data_path=SERVER_DATA_PATH):
 
 
 def handle_client(conn, addr):
-    client_platform = conn.recv(SIZE).decode()
+    client_platform = conn.recv(1024).decode()
     print(f"[NEW CONNECTION] {addr} connected [PLATFORM] {client_platform}")
     conn.send(("OK@Welcome to the File Server:" + help_text).encode())
 
     while True:
         try:
-            data = conn.recv(SIZE).decode()
+            data = conn.recv(1024).decode()
             data = data.split("@")
             cmd = data[0]
         except:

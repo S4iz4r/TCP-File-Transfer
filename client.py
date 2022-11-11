@@ -14,8 +14,6 @@ s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 s.connect(("8.8.8.8", 80))
 SELF_IP = s.getsockname()[0]
 s.close()
-FORMAT = "utf-8"
-SIZE = 8192  # 1024
 CLIENT_DATA_PATH = 'downloaded'
 
 platform = platform.system()
@@ -131,7 +129,7 @@ def main(IP):
             exit()
     print(f"Connecting to [{IP}:{PORT}]")
     while True:
-        data = client.recv(SIZE).decode()
+        data = client.recv(1024).decode()
         try:
             cmd, msg = data.split("@", 1)
         except Exception as e:
