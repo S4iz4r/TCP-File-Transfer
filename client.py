@@ -68,6 +68,7 @@ def recive_file(ip, port, client_data_path=CLIENT_DATA_PATH):
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server.bind((ip, port + 1))
         server.listen()
+        server.settimeout(2)
         client, addr = server.accept()
         file_name = client.recv(1024).decode()
         client.send('ok'.encode())
@@ -135,7 +136,7 @@ def main(IP):
         except Exception as e:
             print(e)
         if cmd == "OK":
-            if not msg.startswith("OK@") or not msg.startswith(" "):
+            if not msg.startswith("OK@") and not msg.startswith(" "):
                 print(f"{msg}")
         data = ''
         while data == '':

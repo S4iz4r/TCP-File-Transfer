@@ -207,7 +207,7 @@ def handle_client(conn, addr):
                 continue
             if not os.path.isdir(SERVER_DATA_PATH + slash + fname):
                 print(
-                    f"{addr} has requested a to file dowload: {fname} through port: {int(port) + 1}")
+                    f"{addr} has requested a file dowload: {fname} through port: {int(port) + 1}")
                 if len(files) == 0:
                     send_data += "The server directory is empty"
                 else:
