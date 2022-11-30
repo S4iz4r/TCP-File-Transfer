@@ -10,10 +10,10 @@ from threading import Thread
 from hashlib import sha256
 
 PORT = 4456
-IP = '127.0.0.1'
 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 s.connect(("8.8.8.8", 80))
 SELF_IP = s.getsockname()[0]
+IP = ''
 s.close()
 CLIENT_DATA_PATH = 'downloaded'
 
@@ -309,6 +309,6 @@ if __name__ == "__main__":
             break
         elif ip == '':
             print("No ip address provided, using localhost by default")
-            ip = IP
+            IP = SELF_IP
             break
     main(IP)
